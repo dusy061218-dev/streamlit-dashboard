@@ -1,3 +1,103 @@
-streamit
-pandas
-altair
+import streamlit as st
+import pandas as pd
+import altair as alt
+
+# Page setup
+st.set_page_config(page_title="Data Dictionary & Constraints", layout="wide")
+
+st.title("🛡️ Data Dictionary & Quality Constraints")
+st.markdown("Detailed breakdown of expected attribute limits, formats, and validation rules.")
+
+# 1. DEFINE CONSTRAINTS AND LIMITS USING PANDAS
+# This centralizes your data dictionary rules
+rules_data = {
+    "Attribute": [
+        "warehouse_block", 
+        "Avg. Session Length", 
+        "Time on App", 
+        "Time on Website", 
+        "Length of Membership", 
+        "Yearly Amount Spent"
+    ],
+    "Expected Type": ["String (Categorical)", "Float", "Float", "Float", "Float", "Float"],
+    "Format / Limits": [
+        "UPPERCASE ALPHABETS ONLY (A-F)", 
+        "Positive Range: 20.00 to 50.00", 
+        "Positive Range: 0.00 to 20.00", 
+        "Positive Range: 0.00 to 60.00", 
+        "Positive Range: 0.0 to 10.0", 
+        "Positive Range: $100.00 to $1,000.00"
+    ],
+    "Current Status": ["Compliant", "Compliant", "Compliant", "Compliant", "Compliant", "Compliant"],
+    "Current Accuracy (%)": [100.0, 100.0, 100.0, 100.0, 100.0, 100.0],
+    "Description": [
+        "The physical location block in the fulfillment center. Must be a capitalized letter.",
+        "Average duration of a customer login session measured in minutes.",
+        "Total fractional hours a customer spent browsing items via the iOS/Android app.",
+        "Total fractional hours a customer spent browsing items via the desktop website.",
+        "Number of consecutive years the customer has maintained an active subscription.",
+        "Total net revenue invoiced to this specific customer account annually."
+    ]
+}
+
+df_rules = pd.DataFrame(rules_data)
+
+# --- SPLIT LAYOUT: VISUAL CHART & DATA ENGINNERING TABLE ---
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    st.subheader("📊 Constraint Compliance Status")
+    
+    # Use Altair to create a visual health-check status bar chart
+    status_chart = alt.Chart(df_rules).mark_bar().encode(
+        x=alt.X('Current Accuracy (%):Q', scale=alt.Scale(domain=[0, 100])),
+        y=alt.Y('Attribute:N', sort='-x', title="Data Attribute"),
+        color=alt.Color(
+            'Current Status:N', 
+            scale=alt.Scale(domain=['Compliant', 'Violated'], range=['#2ca02c', '#d62728']),
+            title="Validation State"
+        ),
+        tooltip=['Attribute', 'Expected Type', 'Format / Limits', 'Current Accuracy (%)']
+    ).properties(
+        height=300,
+        title="Schema Rule Matching Percentage"
+    )
+    
+    st.altair_chart(status_chart, use_container_width=True)
+
+with col2:
+    st.subheader("📋 System Schema Constraints Reference")
+    
+    # Render the interactive dataframe display
+    st.dataframe(
+        df_rules,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Attribute": st.column_config.TextColumn("Attribute Name", help="Database column name match.", width="medium"),
+            "Expected Type": st.column_config.TextColumn("Data Type"),
+            "Format / Limits": st.column_config.TextColumn("Format Restrictions / Boundaries"),
+            "Current Accuracy (%)": st.column_config.NumberColumn("Match Rate", format="%.1f%%"),
+            "Description": st.column_config.TextColumn("Business Context Rules", width="large")
+        }
+    )
+
+st.markdown("---")
+
+# 2. CODE SNIPPET FORMAT DISPLAY
+with st.expander("🛠️ View Programmatic Constraint Rules (JSON / Schema Format)"):
+    st.markdown("You can use this reference schema logic in your data pipeline checking scripts:")
+    schema_blueprint = {
+        "warehouse_block": {
+            "type": "string",
+            "regex": "^[A-Z]$",
+            "nullable": False
+        },
+        "Yearly Amount Spent": {
+            "type": "float",
+            "min": 0.0,
+            "max": 10000.0,
+            "nullable": False
+        }
+    }
+    st.json(schema_blueprint)
